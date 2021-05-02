@@ -9,17 +9,18 @@ db = {
 
 def dump():
     global db
-    try:
-        with open("db.p", "wb") as db_file:
-            pickle.dump(db, db_file)
-    except Exception as e:
-        print(e)
-        return
+    with open("db.p", "wb") as db_file:
+        pickle.dump(db, db_file)
+
 
 def load():
     global db
-    with open("db.p", "rb") as db_file:
-        db = pickle.load(db_file)
+    try:
+        with open("db.p", "rb") as db_file:
+            db = pickle.load(db_file)
+    except Exception as e:
+        print(e)
+        return
 
 def create_new_user(discord_id: str, username: str, avatar: str) -> User:
     user = find_user_by_id(discord_id)
