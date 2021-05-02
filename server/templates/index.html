@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <link rel="icon" href="/static/favicon.ico">
+    <title>RUGood</title>
+
+    <style>
+        @import url('https://rsms.me/inter/inter.css');
+
+        html {
+            font-family: 'Inter', sans-serif;
+        }
+
+        @supports (font-variation-settings: normal) {
+            html {
+                font-family: 'Inter var', sans-serif;
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: {{ bg }};
+            --fg: {{ fg }};
+            --fg-hover: #ffffff33;
+            /* --bg:  #2C2F33;
+            --fg: #e6e6e6;
+            --fg-hover: #e6e6e625; */
+        }
+
+
+        body {
+            margin: 0;
+            padding: 1rem 1rem;
+            background-color: var(--bg);
+            color: var(--fg);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 20px;
+        }
+
+        main {
+            max-width: 470px;
+        }
+
+        a {
+            color: var(--fg);
+        }
+
+        h1 {
+            font-size: 64px;
+            font-weight: 800;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        input {
+            border: 2px solid var(--fg);
+            font-size: 20px;
+            background: transparent;
+            color: var(--fg);
+            padding: 0.6rem 1.2rem;
+            border-radius: 999px;
+        }
+
+        *:focus {
+            outline: 4px solid var(--fg-hover);
+        }
+
+        .btn {
+            color: var(--fg);
+            font-size: 20px;
+            border: 2px solid var(--fg);
+            background: var(--bg);
+            display: inline-block;
+            padding: 0.6rem 1.2rem;
+            border-radius: 999999px;
+            /* width: 100%; */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-decoration: none;
+        }
+
+        button.btn:hover,
+        a.btn:hover {
+            cursor: pointer;
+            background: var(--fg-hover);
+        }
+
+        ol {
+            list-style-position: outside;
+            padding: 0;
+        }
+
+        h2 {
+            margin-top: 40px;
+            margin-bottom: 5px;
+            font-size: 30px;
+        }
+
+        li::marker {
+            font-size: 30px;
+            font-weight: 300;
+        }
+
+        p {
+            margin-top: 0;
+            font-weight: 300;
+            opacity: 0.7;
+        }
+
+        .avatar {
+            display: inline;
+            border-radius: 999px;
+            height: 25px;
+            width: 25px;
+        }
+
+        .small-href {
+            text-decoration: underline dotted;
+            font-weight: 500;
+        }
+
+        .small-href:hover {
+            text-decoration: underline solid;
+        }
+
+        .friend-list {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            padding-top: 15px;
+        }
+
+        .friend-item {
+            display: flex;
+            align-items: center;
+
+        }
+
+        .friend-item span {
+            flex: 1;
+        }
+
+        .friend-item button {
+            padding: 0.3rem 1.2rem;
+        }
+
+        .icon {
+            color: transparent;  
+            text-shadow: 0 0 0 var(--fg);
+            }
+    </style>
+
+</head>
+
+<body>
+    <main>
+        <!-- <h1>💯 RUGood 💯</h1> -->
+        <h1  style="display: flex; align-items: center; justify-content: center;">
+            <a href="/" style="text-decoration: none;">RUGood</a>
+            
+        </h1>
+
+        <p style="text-align: center;">Check in with your friends by sending them a lil ping. The "Box" is a little device that sits on your
+            desk that lets you send and receive pings.</p>
+        {% if msg_type == "error" %}
+        <p style="color: red;">{{ msg }}</p>
+        {% elif msg_type == "msg" %}
+        <p style="color: green;">{{ msg }}</p>
+        {% endif %}
+        <ol>
+            <li>
+                <h2>Connect your Discord Account</h2>
+                <p>This lets us save your box and friends. Only your Discord ID is accessed (no emails).</p>
+                {% if user %}
+                <div class="btn" disabled>
+                    <img class="avatar" src="{{ user.avatar }}">&nbsp;Logged in
+                    as&nbsp;<b>{{ user.username }}</b>
+                </div>
+                {% else %}
+                <a class="btn" href="{{ DISCORD_AUTH_URL }}">
+                    Log In with Discord
+                </a>
+                {% endif %}
+            </li>
+
+            <li>
+                <h2>Connect to your Box</h2>
+                <p>If you don't have a physical box you can get a virtual one <a class="small-href" target="_blank"
+                        href="/box">here</a>. Enter the code on your box below.</p>
+                <form method="POST" action="/connect" style="display: flex; gap: 15px;">
+                    <input type="text" name="box_id" id="box_id" value="{{ user.box_id }}" style="width:100%;" />
+                    <button type="submit" class="btn" style="flex:0;">Connect</button>
+                </form>
+            </li>
+
+            <li>
+                <h2>Check in with your Friends</h2>
+                <p>Add your friends that also connected their discord account by entering their discord username. Then send them a ping!</p>
+
+                <form method="POST" action="/add_friend" style="display: flex; gap: 15px;">
+                    <input type="text" name="friend_username" style="width:100%;" />
+                    <button type="submit" class="btn" style="flex:0;">Add</button>
+                </form>
+
+                <div class="friend-list">
+                {% for f in user.friends %}
+                <div class="friend-item">
+                    <img src="{{ f.avatar }}" class="avatar">
+                    <span>&nbsp;&nbsp;{{ f.username }}</span>
+                    <form method="POST" action="/remove_friend/{{f.discord_id}}"><button type="submit" class="btn"
+                            style="border:none;">Remove</button></form>
+                    <form method="POST" action="/ping_friend/{{f.discord_id}}"><button type="submit"
+                            class="btn">Ping</button></form>
+                </div>
+                {% endfor %}
+                </div>
+            </li>
+        </ol>
+    </main>
+</body>
