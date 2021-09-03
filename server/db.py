@@ -1,11 +1,10 @@
-from user import User
+from server.user import User
 from typing import Optional
 from fastapi import Request
 import pickle
 
-db = {
-    "users": {}
-}
+db = {"users": {}}
+
 
 def dump():
     global db
@@ -22,6 +21,7 @@ def load():
         print(e)
         return
 
+
 def create_new_user(discord_id: str, username: str, avatar: str) -> User:
     user = find_user_by_id(discord_id)
     if user is None:
@@ -34,8 +34,10 @@ def create_new_user(discord_id: str, username: str, avatar: str) -> User:
 def find_user_by_request(request: Request) -> Optional[User]:
     return find_user_by_id(request.cookies.get("session", None))
 
+
 def find_user_by_id(id: str) -> Optional[User]:
     return db["users"].get(id, None)
+
 
 def find_user_by_username(username: str) -> Optional[User]:
     for user in db["users"].values():
@@ -43,19 +45,21 @@ def find_user_by_username(username: str) -> Optional[User]:
             return user
     return None
 
+
 def find_user_by_box_id(box_id: str) -> Optional[User]:
     for user in db["users"].values():
         if user.box_id == box_id:
             return user
     return None
 
+
 def find_user_info(id: str) -> dict:
     user = find_user_by_id(discord_id)
     if user is None:
         return {}
-    
+
     return {
         "id": user.id,
         "username": user.username,
-        "friends": [{"id": f.id, "username": f.username} for f in user.friends]
+        "friends": [{"id": f.id, "username": f.username} for f in user.friends],
     }

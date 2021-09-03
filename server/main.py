@@ -1,6 +1,14 @@
 from typing import Optional
 
-from fastapi import FastAPI, Request, Response, Cookie, WebSocket, Form, WebSocketDisconnect
+from fastapi import (
+    FastAPI,
+    Request,
+    Response,
+    Cookie,
+    WebSocket,
+    Form,
+    WebSocketDisconnect,
+)
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import RedirectResponse
@@ -8,24 +16,26 @@ from fastapi.responses import RedirectResponse
 import requests
 import os
 
-from oauth import authorize_user, DISCORD_AUTH_URL
-from user import User
+from server.oauth import authorize_user, DISCORD_AUTH_URL
+from server.user import User
 
-from util import redirect, get_msg, redirect_msg
+from server.util import redirect, get_msg, redirect_msg
 from dotenv import load_dotenv
 
 import json, random
 
-import db
+import server.db as db
 
 app = FastAPI()
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory="./server/static"), name="static")
 templates = Jinja2Templates(directory="templates")
+
 
 @app.on_event("startup")
 async def startup_event():
     db.load()
+
 
 @app.on_event("shutdown")
 def shutdown_event():
@@ -37,8 +47,13 @@ def get_color():
 
 
 def get_colors():
-    h,s,l = (360 * random.random(), 25 + 70 * random.random(), 85 + 10 * random.random())
+    h, s, l = (
+        360 * random.random(),
+        25 + 70 * random.random(),
+        85 + 10 * random.random(),
+    )
     return f"hsl({h},{s}%,{l}%)", f"hsl({h},{s+80}%,{l-80}%)"
+
 
 @app.get("/auth")
 def auth_user(request: Request, code: Optional[str] = None):
@@ -46,16 +61,24 @@ def auth_user(request: Request, code: Optional[str] = None):
         try:
             user = authorize_user(code)
         except Exception as e:
-            return redirect("/", msg_type="error", msg="There was an error authenticating with discord")
+            return redirect(
+                "/",
+                msg_type="error",
+                msg="There was an error authenticating with discord",
+            )
 
         db.dump()
-        
+
         response = redirect()
-        response.set_cookie(key="session", value=user.discord_id, max_age=31622400, expires=31622400)
+        response.set_cookie(
+            key="session", value=user.discord_id, max_age=31622400, expires=31622400
+        )
         return response
     else:
-        return redirect("/", msg_type="error", msg="There was an error authenticating with discord")
-     
+        return redirect(
+            "/", msg_type="error", msg="There was an error authenticating with discord"
+        )
+
 
 @app.get("/")
 def read_root(request: Request, response: Response):
@@ -64,32 +87,39 @@ def read_root(request: Request, response: Response):
     user = db.find_user_by_request(request)
 
     fg, bg = get_colors()
-    res = templates.TemplateResponse("index.html", {
-        "request": request, 
-        "user": user,
-        "msg_type": msg_type,
-        "msg": msg,
-        "DISCORD_AUTH_URL": DISCORD_AUTH_URL,
-        "fg":fg,
-        "bg":bg,
-    })
+    res = templates.TemplateResponse(
+        "index.html",
+        {
+            "request": request,
+            "user": user,
+            "msg_type": msg_type,
+            "msg": msg,
+            "DISCORD_AUTH_URL": DISCORD_AUTH_URL,
+            "fg": fg,
+            "bg": bg,
+        },
+    )
 
     res.set_cookie("msg_type", "")
     res.set_cookie("msg", "")
 
     return res
 
+
 @app.get("/box")
 def box(request: Request, response: Response):
     fg, bg = get_colors()
 
     c = lambda hsl: f"hsla({hsl[0]}, {hsl[1]}%, {hsl[2]}%, 0.2)"
-    return templates.TemplateResponse("box.html", {
-        "request": request,
-        "fg":fg,
-        "bg":bg,
-        "box_colors": [c(get_color()) for _ in range(6)]
-    })
+    return templates.TemplateResponse(
+        "box.html",
+        {
+            "request": request,
+            "fg": fg,
+            "bg": bg,
+            "box_colors": [c(get_color()) for _ in range(6)],
+        },
+    )
 
 
 class BoxConnectionManager:
@@ -109,7 +139,9 @@ class BoxConnectionManager:
     async def send_json(self, box_id: str, message):
         await self.box_connections[box_id].send_json(message)
 
+
 manager = BoxConnectionManager()
+
 
 @app.websocket("/box/{box_id}")
 async def box_websocket(websocket: WebSocket, box_id: str):
@@ -155,21 +187,29 @@ async def connect_endpoint(request: Request, box_id: str = Form("")):
 
     return redirect()
 
+
 async def update_user_box_friends(user: User):
     if user.box_id and manager.has(user.box_id):
-        await manager.send_json(user.box_id, {"method": "friends", "friends": [f.username for f in user.friends]})
+        await manager.send_json(
+            user.box_id,
+            {"method": "friends", "friends": [f.username for f in user.friends]},
+        )
+
 
 async def ping(from_id: str, to_id: str) -> bool:
     from_user = db.find_user_by_id(from_id)
     to_user = db.find_user_by_id(to_id)
     if from_user is None or to_user is None:
         return False
-    
+
     if to_user.box_id and manager.has(to_user.box_id):
-        await manager.send_json(to_user.box_id, {"method": "ping", "from_username": from_user.username})
+        await manager.send_json(
+            to_user.box_id, {"method": "ping", "from_username": from_user.username}
+        )
         return True
-    
+
     return False
+
 
 @app.post("/ping_friend/{to_id}")
 async def ping_endpoint(request: Request, to_id: str):
@@ -180,12 +220,12 @@ async def ping_endpoint(request: Request, to_id: str):
     else:
         return redirect_msg("error", "Ping not sent")
 
+
 @app.post("/add_friend")
 def add_friend(request: Request, friend_username: Optional[str] = Form(None)):
     user = db.find_user_by_request(request)
     if user is None:
         return redirect_msg("error", "You are not logged in")
-
 
     friend_user = db.find_user_by_username(friend_username)
     if friend_user is None:
@@ -201,8 +241,8 @@ def add_friend(request: Request, friend_username: Optional[str] = Form(None)):
     db.dump()
 
     return redirect()
-    
-    
+
+
 @app.post("/remove_friend/{friend_id}")
 def remove_friend(request: Request, friend_id: str):
     user = db.find_user_by_request(request)
@@ -214,7 +254,9 @@ def remove_friend(request: Request, friend_id: str):
         return redirect_msg("error", "Friend does not exist")
 
     user.friends = [f for f in user.friends if f.discord_id != friend_id]
-    friend_user.friends = [f for f in friend_user.friends if f.discord_id != user.discord_id]
+    friend_user.friends = [
+        f for f in friend_user.friends if f.discord_id != user.discord_id
+    ]
 
     update_user_box_friends(user)
 
