@@ -303,7 +303,7 @@
         
         $box_id.value = box_id
 
-        var ws = new WebSocket(`ws://${window.location.host}/box/${box_id}`);
+        var ws = new WebSocket(`wss://${window.location.host}/box/${box_id}`);
 
         ws.onmessage = function(event) {
             var data = JSON.parse(event.data);
