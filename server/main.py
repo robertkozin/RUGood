@@ -29,7 +29,7 @@ import server.db as db
 app = FastAPI()
 
 app.mount("/static", StaticFiles(directory="./server/static"), name="static")
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory="./server/templates")
 
 
 @app.on_event("startup")
